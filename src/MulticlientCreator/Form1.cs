@@ -101,16 +101,24 @@ namespace MulticlientCreator
 
             try
             {
-                var shell = new IWshRuntimeLibrary.WshShell();
-                var shortcut = (IWshRuntimeLibrary.IWshShortcut)shell.CreateShortcut(shortcutPath);
-                shortcut.TargetPath = targetPath;
-                shortcut.Arguments = $"\"EntwellNostaleClient\"";
-                shortcut.Save();
+                CreateShortcut(Path.GetFileNameWithoutExtension(fileName), targetPath, targetPath);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error creating shortcut: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+        
+        public static void CreateShortcut(string shortcutName, string targetPath, string shortcutPath)
+        {
+            string shortcutLocation = Path.Combine(shortcutPath, $"{shortcutName}.lnk");
+            Type t = Type.GetTypeFromProgID("WScript.Shell");
+            dynamic shell = Activator.CreateInstance(t);
+            dynamic shortcut = shell.CreateShortcut(shortcutLocation);
+
+            shortcut.TargetPath = targetPath;
+            shortcut.Arguments = "\"EntwellNostaleClient\"";
+            shortcut.Save();
         }
 
         private bool IsIpValid(string ipAddress) => IPAddress.TryParse(ipAddress, out _);
