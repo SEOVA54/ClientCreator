@@ -49,76 +49,94 @@ namespace MulticlientCreator
                 return;
             }
 
-            string ip = txtIP.Text.Trim();
-            string port = txtPort.Text.Trim();
-
-            if (!IsValidPort(port) || !IsIpValid(ip))
-            {
-                MessageBox.Show("Please enter a valid IP address and port.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            string newFileName = txtFileName.Text.Trim();
-            if (string.IsNullOrEmpty(newFileName))
-            {
-                MessageBox.Show("Please enter a file name.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            string newFilePath = Path.Combine(Path.GetDirectoryName(nostalePath), newFileName + ".exe");
-
             try
             {
-                File.Copy(nostalePath, newFilePath, true);
+                var processes = System.Diagnostics.Process.GetProcessesByName("NostaleClientX");
+                if (processes.Length > 0)
+                {
+                    MessageBox.Show("Please close NostaleClientX.exe before modifying it.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                var fileBytes = File.ReadAllBytes(nostalePath);
+                var fileHex = BitConverter.ToString(fileBytes).Replace("-", "");
+
+                if (!fileHex.Contains(Pattern))
+                {
+                    MessageBox.Show("Please select an original NostaleClientX.exe file. The selected file is already modified.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                string ip = txtIP.Text.Trim();
+                string port = txtPort.Text.Trim();
+
+                if (!IsValidPort(port) || !IsIpValid(ip))
+                {
+                    MessageBox.Show("Please enter a valid IP address and port.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                string newFileName = txtFileName.Text.Trim();
+                if (string.IsNullOrEmpty(newFileName))
+                {
+                    MessageBox.Show("Please enter a file name.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                string tempPath = Path.Combine(Path.GetDirectoryName(nostalePath), "temp.exe");
+
+                using (FileStream fs = new FileStream(nostalePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    using (FileStream tempFs = File.Create(tempPath))
+                    {
+                        fs.CopyTo(tempFs);
+                    }
+                }
 
                 var newIpPattern = GenerateIpPattern(ip);
                 var newPortPattern = GeneratePortPattern(port);
 
-                byte[] fileBytes = ReadBytesFromFile(newFilePath);
-                string fileString = HexHelper.ToHexString(fileBytes);
-
-                var finder = new HexFinder(newFilePath, newIpPattern, newPortPattern);
+                var finder = new HexFinder(tempPath, newIpPattern, newPortPattern);
                 if (finder.ReplaceIpPattern(Pattern, PortPattern))
                 {
+                    if (File.Exists(nostalePath))
+                    {
+                        File.Delete(nostalePath);
+                    }
+                    File.Move(tempPath, nostalePath);
+                    System.Threading.Thread.Sleep(100);
+                    CreateShortcut(nostalePath, newFileName);
                     MessageBox.Show($"Multiclient \"{newFileName}\" has been successfully generated!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                    // Create shortcut
-                    CreateShortcut(newFilePath, newFileName);
                 }
                 else
                 {
+                    if (File.Exists(tempPath)) File.Delete(tempPath);
                     MessageBox.Show("Failed to modify IP and port in the copied file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error copying file: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error during operation: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         private void CreateShortcut(string targetPath, string fileName)
         {
-            string shortcutPath = Path.Combine(Path.GetDirectoryName(targetPath), $"{Path.GetFileNameWithoutExtension(fileName)}.lnk");
-
             try
             {
-                CreateShortcut(Path.GetFileNameWithoutExtension(fileName), targetPath, targetPath);
+                string shortcutLocation = Path.Combine(Path.GetDirectoryName(targetPath), $"{fileName}.lnk");
+                Type t = Type.GetTypeFromProgID("WScript.Shell");
+                dynamic shell = Activator.CreateInstance(t);
+                dynamic shortcut = shell.CreateShortcut(shortcutLocation);
+
+                shortcut.TargetPath = targetPath;
+                shortcut.Arguments = "\"EntwellNostaleClient\"";
+                shortcut.WorkingDirectory = Path.GetDirectoryName(targetPath);
+                shortcut.Save();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error creating shortcut: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-        
-        public static void CreateShortcut(string shortcutName, string targetPath, string shortcutPath)
-        {
-            string shortcutLocation = Path.Combine(shortcutPath, $"{shortcutName}.lnk");
-            Type t = Type.GetTypeFromProgID("WScript.Shell");
-            dynamic shell = Activator.CreateInstance(t);
-            dynamic shortcut = shell.CreateShortcut(shortcutLocation);
-
-            shortcut.TargetPath = targetPath;
-            shortcut.Arguments = "\"EntwellNostaleClient\"";
-            shortcut.Save();
         }
 
         private bool IsIpValid(string ipAddress) => IPAddress.TryParse(ipAddress, out _);
