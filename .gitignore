@@ -5,3 +5,6 @@
 /.vs
 /src/MulticlientCreator/bin/Debug/net8.0-windows
 /src/MulticlientCreator/obj
+
+bin/
+obj/

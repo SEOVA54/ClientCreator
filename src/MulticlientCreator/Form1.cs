@@ -10,6 +10,7 @@ namespace MulticlientCreator
     public partial class Form1 : Form
     {
         private const string OfficialName = "NostaleClientX.exe";
+        private const int BaseLoginPort = 4000;
         private const string Pattern = "0C00000037392E3131302E38342E373500000000";
         private const string PortPattern = "00A00F0000A10F0000A20F0000A00F0000A00F0000A00F0000A30F0000000000000000000000000000";
 
@@ -18,11 +19,50 @@ namespace MulticlientCreator
         public Form1()
         {
             InitializeComponent();
+            ApplyTheme();
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private void ApplyTheme()
         {
-            this.Text = "MulticlientCreator by Fizo";
+            SeovaTheme.Apply(this);
+            BackgroundImage = null;
+            Font = new Font("Segoe UI", 9f);
+
+            Controls.Add(SeovaTheme.Header("Multiclient Creator", "IP · Language"));
+
+            foreach (var lbl in new[] { lblNostalePath, lblIP, lblFileName, lblLanguage })
+            {
+                lbl.ForeColor = SeovaTheme.Fg;
+                lbl.BackColor = Color.Transparent;
+            }
+
+            foreach (var tb in new[] { txtNostalePath, txtIP, txtFileName })
+            {
+                tb.BackColor = SeovaTheme.Input;
+                tb.ForeColor = SeovaTheme.Fg;
+                tb.BorderStyle = BorderStyle.FixedSingle;
+            }
+
+            txtIP.ForeColor = SeovaTheme.Dim;
+
+            cboLanguage.BackColor = SeovaTheme.Input;
+            cboLanguage.ForeColor = SeovaTheme.Fg;
+            cboLanguage.FlatStyle = FlatStyle.Flat;
+
+            btnBrowse.FlatStyle = FlatStyle.Flat;
+            btnBrowse.FlatAppearance.BorderSize = 0;
+            btnBrowse.FlatAppearance.MouseOverBackColor = SeovaTheme.Bar;
+            btnBrowse.BackColor = SeovaTheme.Input;
+            btnBrowse.ForeColor = SeovaTheme.Fg;
+            btnBrowse.UseVisualStyleBackColor = false;
+
+            var gen = SeovaTheme.Button("Generate Multiclient", btnGenerate.Width, btnGenerate.Height);
+            gen.Location = btnGenerate.Location;
+            gen.Anchor = btnGenerate.Anchor;
+            gen.Click += btnGenerate_Click;
+            Controls.Remove(btnGenerate);
+            Controls.Add(gen);
+            gen.BringToFront();
         }
 
         private void btnBrowse_Click(object sender, EventArgs e)
@@ -68,13 +108,14 @@ namespace MulticlientCreator
                 }
 
                 string ip = txtIP.Text.Trim();
-                string port = txtPort.Text.Trim();
-
-                if (!IsValidPort(port) || !IsIpValid(ip))
+                if (!IsIpValid(ip))
                 {
-                    MessageBox.Show("Please enter a valid IP address and port.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Please enter a valid IP address.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
+
+                int languageIndex = cboLanguage.SelectedIndex < 0 ? 0 : cboLanguage.SelectedIndex;
+                string port = (BaseLoginPort + languageIndex).ToString();
 
                 string newFileName = txtFileName.Text.Trim();
                 if (string.IsNullOrEmpty(newFileName))
@@ -105,7 +146,7 @@ namespace MulticlientCreator
                     }
                     File.Move(tempPath, nostalePath);
                     System.Threading.Thread.Sleep(100);
-                    CreateShortcut(nostalePath, newFileName);
+                    CreateShortcut(nostalePath, newFileName, languageIndex);
                     MessageBox.Show($"Multiclient \"{newFileName}\" has been successfully generated!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
@@ -119,7 +160,8 @@ namespace MulticlientCreator
                 MessageBox.Show($"Error during operation: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        private void CreateShortcut(string targetPath, string fileName)
+
+        private void CreateShortcut(string targetPath, string fileName, int languageIndex = 0)
         {
             try
             {
@@ -129,7 +171,7 @@ namespace MulticlientCreator
                 dynamic shortcut = shell.CreateShortcut(shortcutLocation);
 
                 shortcut.TargetPath = targetPath;
-                shortcut.Arguments = "\"EntwellNostaleClient\"";
+                shortcut.Arguments = $"\"EntwellNostaleClient\" {languageIndex}";
                 shortcut.WorkingDirectory = Path.GetDirectoryName(targetPath);
                 shortcut.Save();
             }
@@ -140,22 +182,6 @@ namespace MulticlientCreator
         }
 
         private bool IsIpValid(string ipAddress) => IPAddress.TryParse(ipAddress, out _);
-
-        private bool IsValidPort(string port)
-        {
-            if (int.TryParse(port, out int portNumber))
-            {
-                return portNumber >= 0 && portNumber <= 65535;
-            }
-            return false;
-        }
-        private byte[] ReadBytesFromFile(string path)
-        {
-            using (var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read))
-            {
-                return DeserializationHelper.ReadFully(fileStream);
-            }
-        }
 
         private string GeneratePortPattern(string basePort)
         {
@@ -204,31 +230,16 @@ namespace MulticlientCreator
             if (txtIP.Text == "Enter IP address")
             {
                 txtIP.Text = "";
-                txtIP.ForeColor = SystemColors.GrayText;
+                txtIP.ForeColor = SeovaTheme.Fg;
             }
         }
-        private void txtPort_Enter(object sender, EventArgs e)
-        {
-            if (txtPort.Text == "Enter port")
-            {
-                txtPort.Text = "";
-                txtPort.ForeColor = SystemColors.GrayText;
-            }
-        }
+
         private void txtIP_Leave(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtIP.Text))
             {
                 txtIP.Text = "Enter IP address";
-                txtIP.ForeColor = SystemColors.GrayText;
-            }
-        }
-        private void txtPort_Leave(object sender, EventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(txtPort.Text))
-            {
-                txtPort.Text = "Enter port";
-                txtPort.ForeColor = SystemColors.GrayText;
+                txtIP.ForeColor = SeovaTheme.Dim;
             }
         }
     }
