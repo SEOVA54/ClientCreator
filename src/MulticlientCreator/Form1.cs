@@ -12,7 +12,6 @@ namespace MulticlientCreator
         private const string OfficialName = "NostaleClientX.exe";
         private const int BaseLoginPort = 4000;
         private const string Pattern = "0C00000037392E3131302E38342E373500000000";
-        private const string PortPattern = "00A00F0000A10F0000A20F0000A00F0000A00F0000A00F0000A30F0000000000000000000000000000";
 
         private string selectedFilePath = "";
 
@@ -138,22 +137,43 @@ namespace MulticlientCreator
                 var newPortPattern = GeneratePortPattern(port);
 
                 var finder = new HexFinder(tempPath, newIpPattern, newPortPattern);
-                if (finder.ReplaceIpPattern(Pattern, PortPattern))
-                {
-                    if (File.Exists(nostalePath))
-                    {
-                        File.Delete(nostalePath);
-                    }
-                    File.Move(tempPath, nostalePath);
-                    System.Threading.Thread.Sleep(100);
-                    CreateShortcut(nostalePath, newFileName, languageIndex);
-                    MessageBox.Show($"Multiclient \"{newFileName}\" has been successfully generated!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
+                var patch = finder.ReplaceIpPattern(Pattern);
+
+                // Never move a half-patched client into place. An unpatched port table leaves the
+                // client dialing its stock port (often 4000) whatever language was picked, which on
+                // the player's side looks exactly like "the client cannot find the server".
+                if (!patch.Success)
                 {
                     if (File.Exists(tempPath)) File.Delete(tempPath);
-                    MessageBox.Show("Failed to modify IP and port in the copied file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                    string detail;
+                    if (!patch.IpPatched && !patch.PortPatched)
+                        detail = "Neither the IP address nor the login port table could be located.";
+                    else if (!patch.IpPatched)
+                        detail = "The login port was patched but the IP address could not be located.";
+                    else
+                        detail = "The IP address was patched but the login port table could not be located, "
+                               + $"so the client would keep dialing its stock port instead of {port}.";
+
+                    MessageBox.Show(
+                        $"{detail}\n\nThe file was left untouched. It is most likely not an original "
+                        + $"{OfficialName}, or it is a build this tool does not recognise.",
+                        "Patch failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
                 }
+
+                if (File.Exists(nostalePath))
+                {
+                    File.Delete(nostalePath);
+                }
+                File.Move(tempPath, nostalePath);
+                System.Threading.Thread.Sleep(100);
+                CreateShortcut(nostalePath, newFileName, languageIndex);
+                MessageBox.Show(
+                    $"Multiclient \"{newFileName}\" has been successfully generated!\n\n"
+                    + $"Endpoint : {ip}:{port}\n"
+                    + $"Language : {cboLanguage.SelectedItem} (index {languageIndex})",
+                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {

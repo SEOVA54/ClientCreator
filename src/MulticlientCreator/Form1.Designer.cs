@@ -86,7 +86,10 @@ namespace MulticlientCreator
             cboLanguage.Name = "cboLanguage";
             cboLanguage.Size = new Size(220, 23);
             cboLanguage.TabIndex = 3;
-            cboLanguage.Items.AddRange(new object[] { "UK (English)", "DE (Deutsch)", "FR (Français)", "IT (Italiano)", "PL (Polski)", "ES (Español)", "RU (Русский)", "CZ (Čeština)", "TR (Türkçe)" });
+            // Order is the client region index and must match the emulator's RegionLanguageType enum
+            // (EN=0, DE=1, FR=2, IT=3, PL=4, ES=5, CZ=6, RU=7, TR=8): the index is both the login
+            // port offset (4000 + index) and the region byte the client sends in its login packet.
+            cboLanguage.Items.AddRange(new object[] { "UK (English)", "DE (Deutsch)", "FR (Français)", "IT (Italiano)", "PL (Polski)", "ES (Español)", "CZ (Čeština)", "RU (Русский)", "TR (Türkçe)" });
             cboLanguage.SelectedIndex = 2;
             //
             // lblFileName
